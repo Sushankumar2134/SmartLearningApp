@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,27 +6,131 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { getProfile } from "../services/api";
+
+type ProfileData = {
+  username: string;
+  name: string;
+  email: string;
+  level: number;
+  xp_points: number;
+  courses_enrolled: number;
+  courses_completed: number;
+  certificates: number;
+  learning_hours: number;
+};
+
+const defaultProfile: ProfileData = {
+  username: "",
+  name: "",
+  email: "",
+  level: 0,
+  xp_points: 0,
+  courses_enrolled: 0,
+  courses_completed: 0,
+  certificates: 0,
+  learning_hours: 0,
+};
+
+const normalizeProfile = (data: any): ProfileData => ({
+  username:
+    data?.username ||
+    data?.userName ||
+    data?.user?.username ||
+    data?.user?.userName ||
+    data?.name ||
+    data?.user?.name ||
+    data?.email?.split("@")[0] ||
+    "User",
+  name:
+    data?.name ||
+    data?.username ||
+    data?.fullName ||
+    data?.user?.name ||
+    data?.user?.username ||
+    data?.user?.fullName ||
+    data?.email?.split("@")[0] ||
+    "User",
+  email: data?.email || data?.user?.email || "",
+  level: Number(data?.level ?? data?.user?.level ?? 0),
+  xp_points: Number(
+    data?.xp_points ??
+      data?.xpPoints ??
+      data?.user?.xp_points ??
+      data?.user?.xpPoints ??
+      0
+  ),
+  courses_enrolled: Number(
+    data?.courses_enrolled ??
+      data?.coursesEnrolled ??
+      data?.user?.courses_enrolled ??
+      data?.user?.coursesEnrolled ??
+      0
+  ),
+  courses_completed: Number(
+    data?.courses_completed ??
+      data?.coursesCompleted ??
+      data?.user?.courses_completed ??
+      data?.user?.coursesCompleted ??
+      0
+  ),
+  certificates: Number(data?.certificates ?? data?.user?.certificates ?? 0),
+  learning_hours: Number(
+    data?.learning_hours ??
+      data?.learningHours ??
+      data?.user?.learning_hours ??
+      data?.user?.learningHours ??
+      0
+  ),
+});
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [loading, setLoading] = useState(true);
 
-  const profile = {
-    name: "Sushan Kumar",
-    email: "sushan@email.com",
-    level: 12,
-    xp_points: 850,
-    courses_enrolled: 12,
-    courses_completed: 8,
-    certificates: 3,
-    learning_hours: 45,
-  };
+  useEffect(() => {
+    let isMounted = true;
+const loadProfile = async () => {
+  try {
+    const response = await getProfile();
+
+    console.log("Profile API Response:", response.data);
+
+    const normalizedProfile = normalizeProfile(response.data);
+
+    if (isMounted) {
+      setProfile(normalizedProfile);
+    }
+
+    await AsyncStorage.setItem(
+      "userProfile",
+      JSON.stringify(normalizedProfile)
+    );
+  } catch (error) {
+    console.log("Profile Error:", error);
+  } finally {
+    if (isMounted) {
+      setLoading(false);
+    }
+  }
+};
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("userProfile");
 
     Alert.alert("Success", "Logged out successfully");
 
@@ -63,6 +167,15 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6C63FF" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -76,7 +189,7 @@ export default function ProfileScreen() {
         />
 
         <Text style={styles.name}>
-          {profile.name}
+            {profile.username}
         </Text>
 
         <Text style={styles.email}>
@@ -134,31 +247,37 @@ export default function ProfileScreen() {
         <MenuItem
           icon="account-edit-outline"
           title="Edit Profile"
+          onPress={() => navigation.navigate("EditProfile")}
         />
 
         <MenuItem
           icon="lock-reset"
           title="Change Password"
+          onPress={() => navigation.navigate("ChangePassword")}
         />
 
         <MenuItem
           icon="certificate-outline"
           title="My Certificates"
+          onPress={() => navigation.navigate("Certificates")}
         />
 
         <MenuItem
           icon="heart-outline"
           title="Saved Courses"
+          onPress={() => navigation.navigate("SavedCourses")}
         />
 
         <MenuItem
           icon="cog-outline"
           title="Settings"
+          onPress={() => navigation.navigate("Settings")}
         />
 
         <MenuItem
           icon="help-circle-outline"
           title="Help & Support"
+          onPress={() => navigation.navigate("HelpSupport")}
         />
 
         <MenuItem
@@ -166,53 +285,6 @@ export default function ProfileScreen() {
           title="Logout"
           onPress={handleLogout}
         />
-        <MenuItem
-  icon="account-edit-outline"
-  title="Edit Profile"
-  onPress={() =>
-    navigation.navigate("EditProfile")
-  }
-/>
-
-<MenuItem
-  icon="lock-reset"
-  title="Change Password"
-  onPress={() =>
-    navigation.navigate("ChangePassword")
-  }
-/>
-
-<MenuItem
-  icon="certificate-outline"
-  title="My Certificates"
-  onPress={() =>
-    navigation.navigate("Certificates")
-  }
-/>
-
-<MenuItem
-  icon="heart-outline"
-  title="Saved Courses"
-  onPress={() =>
-    navigation.navigate("SavedCourses")
-  }
-/>
-
-<MenuItem
-  icon="cog-outline"
-  title="Settings"
-  onPress={() =>
-    navigation.navigate("Settings")
-  }
-/>
-
-<MenuItem
-  icon="help-circle-outline"
-  title="Help & Support"
-  onPress={() =>
-    navigation.navigate("HelpSupport")
-  }
-/>
       </View>
     </ScrollView>
   );
@@ -222,6 +294,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F7F8FC",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F7F8FC",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: "#666",
+    fontWeight: "500",
   },
 
   header: {

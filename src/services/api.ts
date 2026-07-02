@@ -5,7 +5,7 @@ const API = axios.create({
 });
 
 export const getProfile = () => {
-  return API.get("/auth/profile");
+  return API.get("/profile");
 };
 // Attach JWT Token Automatically
 API.interceptors.request.use(
